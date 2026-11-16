@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NefroTrack — Hemodiálisis, Reuso de Capilares & Ósmosis Inversa</title>
+  <meta name="description" content="Gestión de Centros de Hemodiálisis, Reuso de Capilares FFV >= 80%, Gate de Planta de Agua Ósmosis y Módulos PAMI">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>">
+  <meta name="theme-color" content="#0284c7">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dialysis: {
+              50: '#f0f9ff',
+              500: '#0284c7',
+              600: '#0369a1',
+              900: '#0c4a6e',
+              950: '#082f49'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    .touch-target { min-height: 44px; min-width: 44px; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; color: black !important; }
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- Header Superior (Clínica / Centro de Diálisis) -->
+  <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between sticky top-0 z-30 no-print">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-dialysis-500/20 border border-dialysis-500/40 flex items-center justify-center text-xl shadow-inner">
+        🏥
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-bold text-base text-white tracking-tight">NefroTrack</h1>
+          <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800">
+            INCUCAI / PAMI
+          </span>
+        </div>
+        <p class="text-xs text-slate-400">Centro Nefrológico & Hemodiálisis Crónica</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <!-- Indicador Estado de Planta de Agua (Ósmosis) -->
+      <div id="water-gate-pill" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/80 border border-emerald-800 text-xs text-emerald-400 font-semibold" title="Estado de la Planta de Agua">
+        <span id="water-gate-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span id="water-gate-label">Ósmosis OK</span>
+      </div>
+      <!-- Indicador WakeLock Tablet Sala -->
+      <button id="btn-wakelock" class="touch-target px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 flex items-center gap-1.5 hover:bg-slate-700 active:scale-95 transition" aria-label="Modo Pantalla Siempre Activa">
+        <span id="wakelock-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+        <span id="wakelock-label">Sala</span>
+      </button>
+      <!-- Indicador Red / 0ms RAM -->
+      <div class="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span class="text-slate-400">0ms RAM</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Barra de Navegación Tabs (Mobile-First) -->
+  <nav class="bg-slate-900/90 backdrop-blur border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto no-print sticky top-[61px] z-20">
+    <button class="nav-tab touch-target flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-sky-400 bg-sky-950/60 border border-sky-800 flex items-center justify-center gap-1.5 whitespace-nowrap" data-tab="sessions" aria-label="Ver Sesiones en Sala">
+      <span>💺</span> Sala Diálisis
+    </button>
+    <button class="nav-tab touch-target flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center gap-1.5 whitespace-nowrap" data-tab="dialyzers" aria-label="Ver Reuso de Capilares">
+      <span>🧬</span> Reuso Capilares (≥80%)
+    </button>
+    <button class="nav-tab touch-target flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center gap-1.5 whitespace-nowrap" data-tab="osmosis" aria-label="Ver Planta de Agua Ósmosis">
+      <span>💧</span> Planta Ósmosis
+    </button>
+    <button class="nav-tab touch-target flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center gap-1.5 whitespace-nowrap" data-tab="pami" aria-label="Ver Módulos PAMI">
+      <span>📋</span> Módulos PAMI
+    </button>
+  </nav>
+
+  <!-- Contenedor Principal de Vistas -->
+  <main class="flex-1 overflow-y-auto p-4 max-w-5xl mx-auto w-full space-y-4">
+
+    <!-- VISTA 1: SALA DE DIÁLISIS (SILLONES & SESIONES ACTIVAS) -->
+    <section id="view-sessions" class="tab-view space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white">Monitoreo de Sesiones en Sala</h2>
+          <p class="text-xs text-slate-400">Control de Ultrafiltración, Presión Arterial y Aislamiento Serológico</p>
+        </div>
+        <button id="btn-open-session-modal" class="touch-target px-4 py-2 rounded-xl bg-dialysis-500 hover:bg-dialysis-600 text-white font-semibold text-xs flex items-center gap-1.5 shadow-lg shadow-sky-950 transition active:scale-95" aria-label="Conectar Nuevo Paciente">
+          <span>+</span> Conectar Paciente
+        </button>
+      </div>
+
+      <!-- Tarjetas Resumen de Sala -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl">
+          <span class="text-slate-400 block">Pacientes en Diálisis</span>
+          <span id="count-active-sessions" class="text-lg font-bold text-sky-400">0</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl">
+          <span class="text-slate-400 block">Tasa UF Segura (&le;13)</span>
+          <span id="count-safe-uf" class="text-lg font-bold text-emerald-400">0</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl">
+          <span class="text-slate-400 block">Riesgo / Alerta UF</span>
+          <span id="count-alert-uf" class="text-lg font-bold text-amber-400">0</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl">
+          <span class="text-slate-400 block">Aislamiento Serológico</span>
+          <span class="text-lg font-bold text-purple-400">100% OK</span>
+        </div>
+      </div>
+
+      <!-- Lista de Sillones y Pacientes -->
+      <div id="sessions-list" class="space-y-3">
+        <!-- Renderizado dinámico vía app.js -->
+      </div>
+    </section>
+
+    <!-- VISTA 2: REUSO DE CAPILARES (FFV >= 80% & ESTERILIZACIÓN) -->
+    <section id="view-dialyzers" class="tab-view space-y-4 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white">Laboratorio de Reprocesamiento de Filtros</h2>
+          <p class="text-xs text-slate-400">Control de Volumen Residual FFV (Norma &ge; 80%) y Límite de Reusos</p>
+        </div>
+        <button id="btn-open-dialyzer-modal" class="touch-target px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-lg shadow-purple-950 transition active:scale-95" aria-label="Reprocesar Filtro Capilar">
+          <span>🔬</span> Reprocesar Capilar
+        </button>
+      </div>
+
+      <!-- Alerta Normativa INCUCAI -->
+      <div class="bg-purple-950/40 border border-purple-800/60 rounded-xl p-3 text-xs text-purple-300 flex items-start gap-2.5">
+        <span class="text-base">🛡️</span>
+        <div>
+          <strong class="font-bold">Regla INCUCAI / Res. 810/2000:</strong> Cada filtro capilar es de uso exclusivo de un único paciente. Si el volumen residual de fibras (FFV) desciende por debajo del 80% del valor basal o alcanza el tope de reusos del centro, debe ser descartado inmediatamente.
+        </div>
+      </div>
+
+      <div id="dialyzers-list" class="space-y-3">
+        <!-- Renderizado dinámico vía app.js -->
+      </div>
+    </section>
+
+    <!-- VISTA 3: PLANTA DE AGUA TRATADA (ÓSMOSIS INVERSA GATE) -->
+    <section id="view-osmosis" class="tab-view space-y-4 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white">Planta de Tratamiento de Agua (Ósmosis Inversa)</h2>
+          <p class="text-xs text-slate-400">Control Matutino Bloqueante: Cloraminas (&lt;0.1 ppm), Conductividad y Presiones</p>
+        </div>
+        <button id="btn-open-osmosis-modal" class="touch-target px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-950 transition active:scale-95" aria-label="Nuevo Registro de Calidad">
+          <span>+</span> Registrar Apertura de Turno
+        </button>
+      </div>
+
+      <div id="osmosis-records-list" class="space-y-3">
+        <!-- Renderizado dinámico vía app.js -->
+      </div>
+    </section>
+
+    <!-- VISTA 4: MÓDULOS PAMI & OBRAS SOCIALES -->
+    <section id="view-pami" class="tab-view space-y-4 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white">Módulos de Facturación PAMI & Obras Sociales</h2>
+          <p class="text-xs text-slate-400">Consolidación Mensual de 13 Sesiones, EPO, Hierro y Traslados sin Débitos</p>
+        </div>
+        <button id="btn-open-pami-modal" class="touch-target px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-lg shadow-amber-950 transition active:scale-95" aria-label="Generar Lote de Facturación">
+          <span>📑</span> Consolidar Lote PAMI
+        </button>
+      </div>
+
+      <div id="pami-list" class="space-y-3">
+        <!-- Renderizado dinámico vía app.js -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: CONECTAR PACIENTE / NUEVA SESIÓN DE DIÁLISIS -->
+  <div id="modal-session" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden no-print" role="dialog" aria-modal="true" aria-labelledby="modal-session-title">
+    <div class="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="modal-session-title" class="font-bold text-base text-white">Conexión de Paciente a Hemodiálisis</h3>
+        <button type="button" class="btn-close-modal touch-target text-slate-400 hover:text-white p-2 text-xl" aria-label="Cerrar modal">&times;</button>
+      </div>
+
+      <form id="form-new-session" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Paciente Crónico</label>
+          <select id="sess-patient-select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white" required>
+            <!-- Opciones pobladas dinámicamente -->
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Sillón / Máquina</label>
+            <input type="text" id="sess-chair" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="Sillón 04" required>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Sector de Sala</label>
+            <select id="sess-room-sector" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" required>
+              <option value="GENERAL_WHITE">Sala Blanca (General)</option>
+              <option value="COHORT_HCV">Sector Cohorte Hepatitis C</option>
+              <option value="ISOLATION_HBV">Aislamiento Exclusivo HBV</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Peso Ingreso (kg)</label>
+            <input type="number" id="sess-pre-weight" step="0.1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="74.5" required>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Peso Seco Prescrito (kg)</label>
+            <input type="number" id="sess-dry-weight" step="0.1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="72.0" required>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Duración (horas)</label>
+            <select id="sess-duration" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+              <option value="240">4.0 Horas (240 min)</option>
+              <option value="210">3.5 Horas (210 min)</option>
+              <option value="270">4.5 Horas (270 min)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Presión Arterial Inicial (mmHg)</label>
+            <input type="text" id="sess-bp" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="130/80" placeholder="130/80" required>
+          </div>
+        </div>
+
+        <!-- Live Preview de Ultrafiltración -->
+        <div id="sess-uf-preview" class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+          <div class="flex justify-between">
+            <span class="text-slate-400">UF Total Programada:</span>
+            <strong id="preview-uf-total" class="text-sky-400">3000 mL</strong>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Tasa Horaria (UF Rate):</span>
+            <strong id="preview-uf-rate" class="text-emerald-400">10.4 mL/kg/h (Segura)</strong>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-slate-800">
+          <button type="button" class="btn-close-modal flex-1 touch-target py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-medium">Cancelar</button>
+          <button type="submit" class="flex-1 touch-target py-2.5 rounded-xl bg-dialysis-500 hover:bg-dialysis-600 text-white font-semibold text-xs shadow-lg shadow-sky-950 transition">Iniciar Sesión</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REPROCESAMIENTO DE CAPILAR (FFV >= 80%) -->
+  <div id="modal-dialyzer" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden no-print" role="dialog" aria-modal="true" aria-labelledby="modal-dialyzer-title">
+    <div class="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="modal-dialyzer-title" class="font-bold text-base text-white">Evaluación de Reuso de Capilar</h3>
+        <button type="button" class="btn-close-modal touch-target text-slate-400 hover:text-white p-2 text-xl" aria-label="Cerrar modal">&times;</button>
+      </div>
+
+      <form id="form-reprocess-dialyzer" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Paciente Asignado al Capilar</label>
+          <select id="reproc-patient-select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" required>
+            <!-- Opciones pobladas dinámicamente -->
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Código QR / Serial del Filtro</label>
+            <input type="text" id="reproc-dialyzer-code" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono" value="CAP-2026-0881" required>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Reusos Previos</label>
+            <input type="number" id="reproc-reuses" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="4" min="0" max="20" required>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Volumen Basal Calibrado (mL)</label>
+            <input type="number" id="reproc-baseline-vol" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="100" required>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Volumen Medido Post-Lavado (mL)</label>
+            <input type="number" id="reproc-measured-vol" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="88" required>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+          <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+            <input type="checkbox" id="reproc-peracetic-strip" class="w-4 h-4 rounded text-sky-500 bg-slate-900 border-slate-700" checked>
+            <span>Tira reactiva negativa (sin ácido peracético residual)</span>
+          </label>
+          <div class="flex justify-between pt-1 border-t border-slate-800/80">
+            <span class="text-slate-400">Fiber Bundle Volume (FFV):</span>
+            <strong id="preview-ffv" class="text-emerald-400">88.0% (&ge;80% APROBADO)</strong>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-slate-800">
+          <button type="button" class="btn-close-modal flex-1 touch-target py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-medium">Cancelar</button>
+          <button type="submit" class="flex-1 touch-target py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs shadow-lg shadow-purple-950 transition">Certificar Reprocesamiento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRO MATUTINO DE ÓSMOSIS INVERSA -->
+  <div id="modal-osmosis" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden no-print" role="dialog" aria-modal="true" aria-labelledby="modal-osmosis-title">
+    <div class="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="modal-osmosis-title" class="font-bold text-base text-white">Apertura de Turno de Planta de Agua</h3>
+        <button type="button" class="btn-close-modal touch-target text-slate-400 hover:text-white p-2 text-xl" aria-label="Cerrar modal">&times;</button>
+      </div>
+
+      <form id="form-water-gate" class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Cloraminas Totales (mg/L)</label>
+            <input type="number" id="gate-chloramines" step="0.01" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="0.02" required>
+            <span class="text-[10px] text-slate-500">Límite absoluto &lt; 0.10 mg/L</span>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Conductividad Permeado (&micro;S/cm)</label>
+            <input type="number" id="gate-conductivity" step="0.1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="6.5" required>
+            <span class="text-[10px] text-slate-500">Óptimo &lt; 15.0 &micro;S/cm</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Dureza Total (ppm CaCO3)</label>
+            <input type="number" id="gate-hardness" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="0" required>
+            <span class="text-[10px] text-slate-500">Debe ser 0 ppm (Post-Ablandador)</span>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Presión Anillo (bar)</label>
+            <input type="number" id="gate-pressure" step="0.1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="2.8" required>
+            <span class="text-[10px] text-slate-500">Normal 2.0 a 4.5 bar</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Técnico Responsable</label>
+          <input type="text" id="gate-technician" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="Téc. Bioing. Martín Varela" required>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-slate-800">
+          <button type="button" class="btn-close-modal flex-1 touch-target py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-medium">Cancelar</button>
+          <button type="submit" class="flex-1 touch-target py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-950 transition">Certificar y Abrir Turno</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CONSOLIDACIÓN DE LOTE PAMI -->
+  <div id="modal-pami" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden no-print" role="dialog" aria-modal="true" aria-labelledby="modal-pami-title">
+    <div class="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="modal-pami-title" class="font-bold text-base text-white">Generar Lote de Facturación PAMI</h3>
+        <button type="button" class="btn-close-modal touch-target text-slate-400 hover:text-white p-2 text-xl" aria-label="Cerrar modal">&times;</button>
+      </div>
+
+      <form id="form-pami-batch" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Paciente Afiliado PAMI</label>
+          <select id="pami-patient-select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" required>
+            <!-- Opciones pobladas dinámicamente -->
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Periodo Mensual</label>
+            <input type="text" id="pami-period" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="2026-11" required>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Modalidad Traslado</label>
+            <select id="pami-transport" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+              <option value="AMBULATORY">Remis Ambulatorio ($120.000)</option>
+              <option value="WHEELCHAIR">Silla de Ruedas ($210.000)</option>
+              <option value="STRETCHER">Camilla ($380.000)</option>
+              <option value="NONE">Sin Traslado ($0)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Dosis EPO 4000 UI</label>
+            <input type="number" id="pami-epo" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="12" min="0">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Dosis Hierro Sacarato</label>
+            <input type="number" id="pami-iron" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" value="4" min="0">
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-slate-800">
+          <button type="button" class="btn-close-modal flex-1 touch-target py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-medium">Cancelar</button>
+          <button type="submit" class="flex-1 touch-target py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs shadow-lg shadow-amber-950 transition">Emitir Lote Sellado SHA-256</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

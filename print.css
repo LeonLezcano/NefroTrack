@@ -1,0 +1,32 @@
+/* NefroTrack Print Stylesheet (media="print") */
+.no-print {
+  display: none !important;
+}
+
+@media print {
+  html,
+  body {
+    background: Canvas !important;
+    color: CanvasText !important;
+  }
+
+  main,
+  section,
+  article,
+  header,
+  nav,
+  div,
+  p,
+  span,
+  h1,
+  h2,
+  h3,
+  strong,
+  small {
+    background: transparent !important;
+    color: CanvasText !important;
+    border-color: GrayText !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}

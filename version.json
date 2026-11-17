@@ -1,7 +1,7 @@
 {
-  "version": "v1.0.00",
-  "build": "20261116.1",
+  "version": "v1.0.01",
+  "build": "20261117.1",
   "appName": "NefroTrack",
-  "releaseDate": "2026-11-16",
-  "cacheName": "nefrotrack-cache-v1.0.00"
+  "releaseDate": "2026-11-17",
+  "cacheName": "nefrotrack-cache-v1.0.01"
 }

@@ -1,13 +1,13 @@
 {
   "name": "nefrotrack",
-  "version": "1.0.00",
+  "version": "1.0.01",
   "description": "NefroTrack — Centros de Hemodiálisis, Reuso de Capilares (FFV >= 80%), Ósmosis Inversa & Módulos PAMI/INCUCAI",
   "type": "module",
   "scripts": {
     "test": "node tests/run_tests.js",
     "test:security": "node ../AiAppFactory/tools/security-guardian/index.mjs .",
     "security:full": "node ../AiAppFactory/tools/security-guardian/index.mjs . --abuse",
-    "version:bump": "node -e \"import('fs').then(fs => { const v = JSON.parse(fs.readFileSync('version.json')); const [maj, min, patch] = v.version.replace('v', '').split('.').map(Number); const nextPatch = String(patch + 1).padStart(2, '0'); v.version = 'v' + maj + '.' + min + '.' + nextPatch; v.build = new Date().toISOString().slice(0, 10).replace(/-/g, '') + '.1'; v.releaseDate = new Date().toISOString().slice(0, 10); v.cacheName = 'nefrotrack-cache-' + v.version; fs.writeFileSync('version.json', JSON.stringify(v, null, 2)); console.log('Bumped to ' + v.version); })\""
+    "version:bump": "node -e \"import('fs').then(fs => { const v = JSON.parse(fs.readFileSync('version.json', 'utf8')); const [maj, min, patch] = v.version.replace('v', '').split('.').map(Number); const nextPatch = String(patch + 1).padStart(2, '0'); const semver = maj + '.' + min + '.' + nextPatch; v.version = 'v' + semver; v.build = new Date().toISOString().slice(0, 10).replace(/-/g, '') + '.1'; v.releaseDate = new Date().toISOString().slice(0, 10); v.cacheName = 'nefrotrack-cache-' + v.version; fs.writeFileSync('version.json', JSON.stringify(v, null, 2) + '\\n'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); pkg.version = semver; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\\n'); const sw = fs.readFileSync('sw.js', 'utf8').replace(/const CACHE_NAME = '[^']+';/, 'const CACHE_NAME = \\'' + v.cacheName + '\\';'); fs.writeFileSync('sw.js', sw); console.log('Bumped to ' + v.version + ' (SW: ' + v.cacheName + ')'); })\""
   },
   "keywords": [
     "hemodialisis",

@@ -16,6 +16,15 @@ const STORAGE_KEYS = {
 export class NefroTrackCacheService {
   constructor(storage = typeof localStorage !== 'undefined' ? localStorage : null) {
     this.storage = storage || new MemoryStorageFallback();
+    this.corruptionWarnings = [];
+  }
+
+  getCorruptionWarnings() {
+    return [...this.corruptionWarnings];
+  }
+
+  clearCorruptionWarnings() {
+    this.corruptionWarnings = [];
   }
 
   isDemoPurged() {
@@ -30,8 +39,10 @@ export class NefroTrackCacheService {
     const raw = this.storage.getItem(key);
     if (raw) {
       try {
-        return JSON.parse(raw);
-      } catch {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (err) {
+        this.corruptionWarnings.push(`Datos locales dañados en "${key}" (${err?.message || 'JSON inválido'}).`);
         return [];
       }
     }
@@ -94,8 +105,10 @@ export class NefroTrackCacheService {
     const raw = this.storage.getItem(STORAGE_KEYS.OUTBOX);
     if (!raw) return [];
     try {
-      return JSON.parse(raw);
-    } catch {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      this.corruptionWarnings.push(`Cola Outbox local dañada (${err?.message || 'JSON inválido'}).`);
       return [];
     }
   }

@@ -65,7 +65,7 @@ NefroTrack resuelve los cuatro puntos neurálgicos de seguridad biológica y rec
 
 ---
 
-## 🧪 Arnés de Pruebas Multi-Capa (54 Tests)
+## 🧪 Arnés de Pruebas Multi-Capa (57 Tests)
 
 ```bash
 pnpm test
@@ -74,12 +74,21 @@ pnpm test
 | Capa | Nombre | Cantidad | Descripción |
 | :--- | :--- | :---: | :--- |
 | **Capa 1** | Unitarias & Fuzzing Caótico | 26 | Bloqueo por cruce de paciente, FFV < 80%, reusos máximos, ácido peracético residual, cloraminas altas, tasa de UF segura y Kt/V Daugirdas. |
-| **Capa 2** | Integración & Persistencia | 10 | Liquidación mensual PAMI, EPO/Hierro, traslado, detección de débitos, persistencia offline y Outbox FIFO. |
+| **Capa 2** | Integración & Persistencia | 11 | Liquidación mensual PAMI, EPO/Hierro, traslado, detección de débitos, persistencia offline, advertencia ante JSON corrupto y Outbox FIFO. |
 | **Capa 3** | Componentes & DOM Zero-Sink | 6 | Sinks de Sanitizer, escape de etiquetas, filtrado de esquemas maliciosos (`javascript:`, `data:`), formateadores de peso, UF, presión y conductividad. |
-| **Capa 4** | Seguridad Cualitativa & Reglas | 6 | Validación estricta de cabeceras en `firebase.json`, reglas de Firestore médicas, escaneo de secretos y versión semántica `vX.Y.ZZ`. |
+| **Capa 4** | Seguridad Cualitativa & Reglas | 8 | Validación estricta de cabeceras en `firebase.json` (`/sw.js` anti-stale, CSP sin `unsafe-inline` ni CDN), reglas de Firestore médicas, CSS local Offline-First, escaneo de secretos y versión semántica `vX.Y.ZZ`. |
 | **Capa 5** | Flujo E2E Ciclo de Vida | 6 | Flujo completo: Habilitación matutina de ósmosis $\to$ Validación serológica $\to$ Escaneo QR de capilar (FFV $\ge$ 80%) $\to$ Sesión con UF segura $\to$ Kt/V $\to$ Cierre de Lote PAMI. |
 
-**Total:** 54 tests | 54 aprobados (100% PASS).
+**Total:** 57 tests | 57 aprobados (100% PASS).
+
+---
+
+## 🎨 Remediación UX/UI, Accesibilidad y PWA Offline-First
+
+- **Sistema de Diseño (`DESIGN.md`):** Tema oscuro clínico de bajo deslumbramiento para salas de diálisis con contraste WCAG AA ($\ge 4.5:1$), jerarquía tipográfica descendente y hoja de impresión dedicada (`print.css`).
+- **Accesibilidad (a11y) y Teclado:** Soporte de `Escape` para cerrar modales, `role="tablist"`/`role="tab"`/`aria-selected`, `<label for="...">` en todos los controles, `:focus-visible` de alto contraste, áreas táctiles $\ge 44\text{px}$ (`.touch-target`) y `@media (prefers-reduced-motion: reduce)`.
+- **Verdad Radical y Telemetría Real:** Datos precargados etiquetados como `[DEMO]` con purga manual en UI (`Limpiar Datos Demo`), estado serológico calculado dinámicamente en sala, conectividad real vía `navigator.onLine` y sellado SHA-256 mediante Web Crypto (`CryptoSeal`).
+- **PWA 100% Offline-First:** Tailwind CSS precompilado en `./styles.css` (cero dependencia de CDN en runtime), `manifest.json`, registro externo en `src/sw-register.js` y `sw.js` con estrategia híbrida y cabecera `Cache-Control: no-cache, no-store, must-revalidate` para `/sw.js`.
 
 ---
 

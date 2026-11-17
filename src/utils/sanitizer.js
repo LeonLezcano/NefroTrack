@@ -75,9 +75,11 @@ export class Sanitizer {
     const allowedAttrs = new Set([
       'class', 'id', 'name', 'type', 'value', 'placeholder', 'data-id',
       'data-action', 'data-tab', 'data-qr', 'data-code', 'data-patient', 'data-session',
-      'disabled', 'checked', 'selected', 'rows', 'cols', 'href', 'title', 'aria-label',
-      'role', 'd', 'fill', 'stroke', 'stroke-width', 'viewBox', 'xmlns', 'src', 'alt',
-      'target', 'rel', 'step', 'max', 'min', 'style'
+      'disabled', 'checked', 'selected', 'rows', 'cols', 'href', 'title',
+      'aria-label', 'aria-hidden', 'aria-selected', 'aria-controls', 'aria-disabled', 'aria-labelledby',
+      'role', 'tabindex', 'for', 'd', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
+      'viewbox', 'xmlns', 'width', 'height', 'x', 'y', 'cx', 'cy', 'r', 'rx', 'ry', 'x1', 'y1', 'x2', 'y2', 'points',
+      'src', 'alt', 'target', 'rel', 'step', 'max', 'min', 'style'
     ]);
 
     function cleanNode(node) {

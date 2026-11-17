@@ -551,6 +551,18 @@ async function runAllTests() {
     assertEqual(d[0].dialyzerId, 'CAP-MEM');
   });
 
+  await test('L2-11: CacheService - Registra advertencia ante JSON corrupto sin arrojar excepcion', () => {
+    const brokenStorage = {
+      getItem: (k) => (k === 'nefrotrack_sessions' ? '{corrupt_json' : null),
+      setItem: () => {},
+      removeItem: () => {}
+    };
+    const cache = new NefroTrackCacheService(brokenStorage);
+    const sessions = cache.getSessions([]);
+    assertEqual(sessions.length, 0);
+    assert(cache.getCorruptionWarnings().length === 1);
+  });
+
   // ----------------------------------------------------
   // LAYER 3: COMPONENTES & SEGURIDAD DOM (6 Tests)
   // ----------------------------------------------------
@@ -646,16 +658,41 @@ async function runAllTests() {
 
   await test('L4-05: package.json - Scripts test, test:security y version:bump configurados', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'package.json'), 'utf8'));
+    const ver = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'version.json'), 'utf8'));
     assert(pkg.scripts.test);
     assert(pkg.scripts['test:security'] || pkg.scripts['security:full']);
     assert(pkg.scripts['version:bump']);
-    assertEqual(pkg.version, '1.0.00');
+    assert(/^\d+\.\d+\.\d{2}$/.test(pkg.version), `Formato semver inválido: ${pkg.version}`);
+    assertEqual(`v${pkg.version}`, ver.version, 'package.json debe coincidir con version.json');
   });
 
-  await test('L4-06: version.json - Alineación con estándar semántico vX.Y.ZZ', () => {
+  await test('L4-06: version.json & sw.js - Alineación con estándar semántico vX.Y.ZZ', () => {
     const ver = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'version.json'), 'utf8'));
-    assertEqual(ver.version, 'v1.0.00');
-    assert(ver.appName === 'NefroTrack');
+    const sw = fs.readFileSync(path.join(ROOT_DIR, 'sw.js'), 'utf8');
+    assert(/^v\d+\.\d+\.\d{2}$/.test(ver.version), `Formato vX.Y.ZZ inválido: ${ver.version}`);
+    assertEqual(ver.appName, 'NefroTrack');
+    assert(sw.includes(ver.cacheName), `sw.js debe usar cacheName ${ver.cacheName}`);
+  });
+
+  await test('L4-07: firebase.json - CSP estricta sin CDN ni unsafe-inline y header anti-stale para /sw.js', () => {
+    const firebaseJson = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'firebase.json'), 'utf8'));
+    const allHeaders = firebaseJson.hosting.headers.flatMap(h => h.headers);
+    const csp = allHeaders.find(h => h.key === 'Content-Security-Policy').value;
+    assert(!csp.includes('cdn.tailwindcss.com'));
+    assert(!csp.includes("'unsafe-inline'"));
+    const swRule = firebaseJson.hosting.headers.find(h => h.source === '/sw.js' || h.source === 'sw.js');
+    assert(swRule, 'Debe existir regla de cabecera para /sw.js');
+    const cc = swRule.headers.find(h => h.key === 'Cache-Control')?.value || '';
+    assert(cc.includes('no-cache') && cc.includes('no-store'));
+  });
+
+  await test('L4-08: index.html - Offline-First CSS local, manifest, viewport accesible y sin em-dash', () => {
+    const html = fs.readFileSync(path.join(ROOT_DIR, 'index.html'), 'utf8');
+    const appJs = fs.readFileSync(path.join(ROOT_DIR, 'src/app.js'), 'utf8');
+    assert(!html.includes('cdn.tailwindcss.com'), 'No debe depender de CDN Tailwind');
+    assert(!html.includes('user-scalable=no'), 'Viewport no debe bloquear pinch-zoom');
+    assert(html.includes('./styles.css') && html.includes('./manifest.json'));
+    assert(!html.includes('—') && !appJs.includes('—'), 'Sin em-dash en UI');
   });
 
   // ----------------------------------------------------
